@@ -1,0 +1,27 @@
+# Tanggapin AI Security Policy
+# https://tanggapin.ai
+
+# Contact for security issues
+Contact: mailto:genfity@gmail.com
+Contact: https://wa.me/6285174314023
+
+# Encryption (PGP key if available)
+# Encryption: https://tanggapin.ai/.well-known/pgp-key.txt
+
+# Acknowledgments page
+# Acknowledgments: https://tanggapin.ai/security/thanks
+
+# Policy
+# Policy: https://tanggapin.ai/security/policy
+
+# Hiring
+# Hiring: https://genfity.com/careers
+
+# Preferred Languages
+Preferred-Languages: id, en
+
+# Canonical URL
+Canonical: https://tanggapin.ai/.well-known/security.txt
+
+# Expiration date
+Expires: 2025-12-31T23:59:59.000Z

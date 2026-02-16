@@ -1,0 +1,150 @@
+{
+  "name": "Tanggapin AI - Platform AI Agent untuk Layanan Pemerintahan Digital Indonesia",
+  "short_name": "Tanggapin AI",
+  "description": "Tanggapin AI adalah Platform AI Agent untuk layanan pemerintahan digital Indonesia. Laporkan keluhan, ajukan layanan administrasi, dan dapatkan informasi pemerintah langsung melalui WhatsApp dan webchat. Solusi smart government 24/7 untuk kelurahan, kecamatan, dan instansi pemerintah. Dikembangkan oleh Genfity Digital Solution",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "background_color": "#F9F7F7",
+  "theme_color": "#3F72AF",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": [
+    "government",
+    "productivity",
+    "utilities",
+    "business",
+    "social"
+  ],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "icons": [
+    {
+      "src": "/logo-dashboard.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-dashboard.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo-dashboard.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-dashboard.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/dashboard.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Tanggapin AI Dashboard - Platform Layanan Pemerintahan Digital"
+    },
+    {
+      "src": "/dashboard.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Tanggapin AI Mobile View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lapor Keluhan",
+      "short_name": "Lapor",
+      "description": "Laporkan keluhan atau pengaduan masyarakat",
+      "url": "/#layanan",
+      "icons": [
+        {
+          "src": "/logo-dashboard.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Ajukan Surat",
+      "short_name": "Surat",
+      "description": "Ajukan surat keterangan secara online",
+      "url": "/#layanan",
+      "icons": [
+        {
+          "src": "/logo-dashboard.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Permohonan Layanan",
+      "short_name": "Layanan",
+      "description": "Ajukan layanan administrasi secara terarah",
+      "url": "/#layanan",
+      "icons": [
+        {
+          "src": "/logo-dashboard.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "FAQ",
+      "short_name": "FAQ",
+      "description": "Pertanyaan yang sering diajukan",
+      "url": "/#faq",
+      "icons": [
+        {
+          "src": "/logo-dashboard.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://tanggapin.ai/manifest.json"
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+tanggapin",
+      "url": "/?action=%s"
+    }
+  ]
+}

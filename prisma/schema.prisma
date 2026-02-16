@@ -1,0 +1,433 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model admin_users {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password_hash String
+  name          String
+  role          String   @default("village_admin")
+  is_active     Boolean  @default(true)
+  village_id    String?
+  created_at    DateTime @default(now())
+  
+  sessions      admin_sessions[]
+  activity_logs activity_logs[]
+  village       villages? @relation(fields: [village_id], references: [id])
+}
+
+model admin_sessions {
+  id         String   @id @default(cuid())
+  admin_id   String
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+  
+  admin      admin_users @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  
+  @@index([admin_id])
+  @@index([expires_at])
+}
+
+model activity_logs {
+  id         String   @id @default(cuid())
+  admin_id   String
+  action     String
+  resource   String
+  details    Json?
+  ip_address String?
+  timestamp  DateTime @default(now())
+  
+  admin      admin_users @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  
+  @@index([admin_id])
+  @@index([timestamp])
+}
+
+// ==================== SYSTEM SETTINGS ====================
+
+model system_settings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  updated_at  DateTime @updatedAt
+  created_at  DateTime @default(now())
+}
+
+// ==================== AI GOLDEN SET ====================
+
+model ai_golden_set_runs {
+  id               String   @id @default(cuid())
+  run_id           String   @unique
+  total            Int
+  intent_accuracy  Float
+  keyword_accuracy Float
+  overall_accuracy Float
+  thresholds       Json
+  status           Json
+  started_at       DateTime
+  completed_at     DateTime
+  created_at       DateTime @default(now())
+
+  items            ai_golden_set_items[]
+
+  @@index([completed_at])
+}
+
+model ai_golden_set_items {
+  id              String   @id @default(cuid())
+  run_id          String
+  query           String   @db.Text
+  expected_intent String?
+  predicted_intent String
+  reply_text      String   @db.Text
+  intent_match    Boolean?
+  keyword_match   Boolean?
+  keyword_score   Float?
+  score           Float
+  latency_ms      Int
+  created_at      DateTime @default(now())
+
+  run             ai_golden_set_runs @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  @@index([run_id])
+}
+
+// ==================== KNOWLEDGE GAPS ====================
+// Tracks questions the AI couldn't answer due to missing knowledge base content.
+// Admin can review gaps and create KB entries to fill them.
+
+model knowledge_gaps {
+  id               String    @id @default(cuid())
+  query_text       String    @db.Text          // The user's original question
+  query_hash       String                      // SHA-256 hash for dedup (normalized lowercase)
+  intent           String                      // LLM intent that triggered the gap
+  confidence_level String                      // RAG confidence: 'none' | 'low'
+  channel          String    @default("whatsapp") // 'whatsapp' | 'webchat'
+  village_id       String    @default("")        // Empty string when no village context
+  hit_count        Int       @default(1)       // How many times this query was asked
+  first_seen_at    DateTime  @default(now())
+  last_seen_at     DateTime  @default(now())
+  
+  // Resolution tracking
+  status           String    @default("open")  // 'open' | 'resolved' | 'ignored'
+  resolved_at      DateTime?
+  resolved_by      String?                     // admin_id who resolved
+  resolution_kb_id String?                     // ID of KB entry created to fill the gap
+
+  @@unique([query_hash, village_id])
+  @@index([village_id])
+  @@index([status])
+  @@index([hit_count])
+  @@index([last_seen_at])
+}
+
+// ==================== KNOWLEDGE CONFLICTS ====================
+// Tracks conflicting data detected in knowledge base (RAG results from different sources disagree).
+// Admin can review conflicts and resolve by editing/removing incorrect knowledge entries.
+
+model knowledge_conflicts {
+  id               String    @id @default(cuid())
+  conflict_hash    String                      // SHA-256 hash for dedup (source1+source2 normalized)
+  village_id       String    @default("")
+  source1_title    String                      // Title / filename of first source
+  source2_title    String                      // Title / filename of second source
+  content_summary  String    @db.Text          // Brief description of the conflicting data
+  similarity_score Float     @default(0)       // Jaccard similarity that triggered conflict (0.35-0.69)
+  query_text       String?   @db.Text          // The user query that triggered conflict detection
+  channel          String    @default("system")
+
+  // Resolution tracking
+  hit_count        Int       @default(1)       // How many times this conflict was detected
+  status           String    @default("open")  // 'open' | 'resolved' | 'auto_resolved' | 'ignored'
+  auto_resolved    Boolean   @default(false)   // Was this auto-resolved because DB data was authoritative?
+  resolution_note  String?   @db.Text          // Admin note on how it was resolved
+  resolved_at      DateTime?
+  resolved_by      String?                     // admin_id who resolved
+
+  first_seen_at    DateTime  @default(now())
+  last_seen_at     DateTime  @default(now())
+
+  @@unique([conflict_hash, village_id])
+  @@index([village_id])
+  @@index([status])
+  @@index([hit_count])
+  @@index([last_seen_at])
+}
+
+// ==================== KNOWLEDGE BASE ====================
+// Note: Embeddings are now stored in AI Service vector database
+// Dashboard only stores metadata for admin management
+
+model knowledge_base {
+  id               String    @id @default(cuid())
+  title            String
+  content          String    @db.Text
+  category         String    // "informasi_umum" | "layanan" | "prosedur" | "jadwal" | "kontak" | "faq"
+  category_id      String?
+  village_id       String?
+  keywords         String[]  // Array of keywords for better search
+  is_active        Boolean   @default(true)
+  priority         Int       @default(0) // Higher priority = shown first
+  admin_id         String?   // Who created/updated this
+  last_edited_at   DateTime? // When content was last edited
+  last_embedded_at DateTime? // When embedding was last generated
+  updated_at       DateTime  @updatedAt
+  created_at       DateTime  @default(now())
+
+  category_ref knowledge_categories? @relation(fields: [category_id], references: [id])
+  village      villages? @relation(fields: [village_id], references: [id])
+  
+  @@index([category])
+  @@index([category_id])
+  @@index([village_id])
+  @@index([is_active])
+  @@index([keywords])
+}
+
+// ==================== KNOWLEDGE DOCUMENTS ====================
+
+model knowledge_documents {
+  id              String   @id @default(cuid())
+  filename        String   // Stored filename (sanitized)
+  original_name   String   // Original upload filename
+  mime_type       String   // application/pdf, text/plain, etc.
+  file_size       Int      // File size in bytes
+  file_url        String   // Storage URL (local or S3)
+  village_id      String?
+  category_id     String?
+  
+  // Processing status
+  status          String   @default("pending") // pending, processing, completed, failed
+  error_message   String?  @db.Text
+  
+  // Metadata
+  title           String?  // Document title (extracted or provided)
+  description     String?  @db.Text
+  category        String?  // Document category for filtering
+  
+  // Processing info
+  total_chunks    Int?     // Number of chunks after processing
+  total_tokens    Int?     // Estimated token count
+  
+  // Relations
+  admin_id        String?  // Who uploaded this
+  chunks          document_chunks[]
+  category_ref    knowledge_categories? @relation(fields: [category_id], references: [id])
+  village         villages? @relation(fields: [village_id], references: [id])
+  
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  @@index([status])
+  @@index([category])
+  @@index([category_id])
+  @@index([village_id])
+  @@index([created_at])
+}
+
+// ==================== DOCUMENT CHUNKS ====================
+// Note: Embeddings are now stored in AI Service vector database
+// Dashboard only stores chunk metadata for reference
+
+model document_chunks {
+  id              String   @id @default(cuid())
+  document_id     String
+  chunk_index     Int      // Order in document (0-based)
+  content         String   @db.Text
+  
+  // Metadata for context
+  page_number     Int?     // Page number if from PDF
+  section_title   String?  // Section/chapter title if available
+  
+  // Relations
+  document        knowledge_documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+  
+  created_at      DateTime @default(now())
+  
+  @@index([document_id])
+  @@index([chunk_index])
+}
+
+// ==================== VILLAGES ====================
+
+model villages {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  profiles                 village_profiles[]
+  admins                   admin_users[]
+  knowledge_categories     knowledge_categories[]
+  important_contact_categories important_contact_categories[]
+  knowledge_base_items     knowledge_base[]
+  knowledge_documents      knowledge_documents[]
+}
+
+model village_profiles {
+  id              String   @id @default(cuid())
+  village_id      String
+  name            String
+  address         String
+  gmaps_url       String?
+  short_name      String
+  operating_hours Json
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  village         villages @relation(fields: [village_id], references: [id], onDelete: Cascade)
+
+  @@index([village_id])
+}
+
+// ==================== KNOWLEDGE CATEGORIES ====================
+
+model knowledge_categories {
+  id         String   @id @default(cuid())
+  village_id String
+  name       String
+  is_default Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  village    villages @relation(fields: [village_id], references: [id], onDelete: Cascade)
+  documents  knowledge_documents[]
+  knowledge_items knowledge_base[]
+
+  @@index([village_id])
+  @@index([name])
+}
+
+// ==================== IMPORTANT CONTACTS ====================
+
+model important_contact_categories {
+  id         String   @id @default(cuid())
+  village_id String
+  name       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  village    villages @relation(fields: [village_id], references: [id], onDelete: Cascade)
+  contacts   important_contacts[]
+
+  @@index([village_id])
+  @@index([name])
+}
+
+model important_contacts {
+  id          String   @id @default(cuid())
+  category_id String
+  name        String
+  phone       String
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  category    important_contact_categories @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@index([category_id])
+  @@index([phone])
+}
+
+// ==================== GENFITY WHATSAPP SESSIONS ====================
+
+model genfity_whatsapp_sessions {
+  id           String   @id @default(cuid())
+  village_id   String   @unique // One session per village
+  session_id   String   @unique // Genfity session ID
+  session_name String
+  token        String   // Session token for API calls
+  status       String   @default("pending")
+  connected    Boolean  @default(false)
+  logged_in    Boolean  @default(false)
+  jid          String?  // WhatsApp JID (user@s.whatsapp.net)
+  qrcode       String?  @db.Text
+  message      String?  @db.Text
+  webhook      String?
+  events       String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([village_id])
+  @@index([session_id])
+  @@index([connected])
+}
+
+// ==================== GEMINI API KEYS (BYOK) ====================
+// Superadmin can add multiple Gemini API keys from different Google accounts
+// Keys are tried in priority order; when one hits 80% of its rate limits,
+// the system automatically switches to the next available key.
+// The .env GEMINI_API_KEY acts as the ultimate fallback.
+
+model gemini_api_keys {
+  id              String   @id @default(cuid())
+  name            String   // Friendly name, e.g. "Akun Gmail Pak Kades"
+  api_key         String   // The actual Gemini API key (encrypted at rest)
+  gmail_account   String   // Gmail account that owns this key
+  tier            String   @default("free") // "free" | "tier1" | "tier2"
+  
+  // Status management
+  is_active       Boolean  @default(true)   // Admin toggle (active/inactive)
+  is_valid        Boolean  @default(true)   // System-detected validity
+  invalid_reason  String?  // Why the key was marked invalid
+  last_error      String?  @db.Text // Last error message
+  consecutive_failures Int @default(0) // Consecutive failures count
+  
+  // Priority — lower = tried first
+  priority        Int      @default(0)
+  
+  // Timestamps
+  last_used_at    DateTime?
+  last_validated_at DateTime?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  usage_records   gemini_api_key_usage[]
+  
+  @@index([is_active, is_valid])
+  @@index([tier])
+  @@index([priority])
+}
+
+// ==================== GEMINI API KEY USAGE TRACKING ====================
+// Tracks per-minute and per-day usage for each API key+model combo.
+// Used to calculate whether a key has hit 80% of its rate limit.
+
+model gemini_api_key_usage {
+  id              String   @id @default(cuid())
+  key_id          String   // FK to gemini_api_keys
+  model           String   // e.g. "gemini-2.5-flash"
+  
+  // Period tracking
+  period_type     String   // "minute" | "day"
+  period_key      String   // "2026-02-09T14:05" for minute, "2026-02-09" for day
+  
+  // Counters
+  request_count   Int      @default(0) // RPM or RPD
+  input_tokens    Int      @default(0) // TPM (input tokens)
+  total_tokens    Int      @default(0) // TPM (total tokens)
+  
+  key             gemini_api_keys @relation(fields: [key_id], references: [id], onDelete: Cascade)
+  
+  @@unique([key_id, model, period_type, period_key])
+  @@index([key_id])
+  @@index([period_type, period_key])
+  @@index([key_id, model, period_type, period_key])
+}
+
