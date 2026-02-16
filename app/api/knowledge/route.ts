@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma'
 import { addKnowledgeVector } from '@/lib/ai-service'
 import { ai } from '@/lib/api-client'
 
+type KnowledgeRow = Awaited<ReturnType<typeof prisma.knowledge_base.findMany>>[number]
+
 async function getSession(request: NextRequest) {
   const token = request.cookies.get('token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '')
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
     let enriched = knowledge
 
     try {
-      const ids = knowledge.map((item) => item.id)
+      const ids = knowledge.map((item: KnowledgeRow) => item.id)
       if (ids.length > 0) {
         const statusResponse = await ai.getKnowledgeStatuses(ids)
         if (statusResponse.ok) {
@@ -91,7 +93,7 @@ export async function GET(request: NextRequest) {
             ])
           )
 
-          enriched = knowledge.map((item) => {
+          enriched = knowledge.map((item: KnowledgeRow) => {
             const status = statusMap.get(item.id)
             const lastEmbedded = status?.updated_at
             return {

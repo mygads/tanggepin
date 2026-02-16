@@ -2,6 +2,10 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 
+type KnowledgeCategoryRow = Awaited<
+  ReturnType<PrismaClient['knowledge_categories']['findMany']>
+>[number]
+
 const prisma = new PrismaClient({
   datasourceUrl: process.env.DATABASE_URL
 })
@@ -153,7 +157,7 @@ async function main() {
     const categories = await prisma.knowledge_categories.findMany({
       where: { village_id: village.id },
     })
-    categories.forEach((category) => categoryMap.set(category.name, category.id))
+    categories.forEach((category: KnowledgeCategoryRow) => categoryMap.set(category.name, category.id))
 
     // Basis pengetahuan tidak di-seed jika dokumen sudah tersedia.
 

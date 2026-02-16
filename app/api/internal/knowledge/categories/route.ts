@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Return both human-readable names and slug versions for NLU/RAG
-    const data = categories.map((c) => ({
+    const data = categories.map((c: (typeof categories)[number]) => ({
       id: c.id,
       name: c.name,
       slug: toSlug(c.name),

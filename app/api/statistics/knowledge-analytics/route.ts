@@ -3,6 +3,11 @@ import { getAdminSession, resolveVillageId } from '@/lib/auth'
 import { ai } from '@/lib/api-client'
 import prisma from '@/lib/prisma'
 
+type KnowledgeGapRow = Awaited<ReturnType<typeof prisma.knowledge_gaps.findMany>>[number]
+type KnowledgeConflictRow = Awaited<
+  ReturnType<typeof prisma.knowledge_conflicts.findMany>
+>[number]
+
 // GET - Get knowledge analytics (intent stats, top queries, coverage gaps)
 export async function GET(request: NextRequest) {
   try {
@@ -64,7 +69,7 @@ export async function GET(request: NextRequest) {
           _count: true,
         }),
       ])
-      topGaps = gaps.map(g => ({
+      topGaps = gaps.map((g: KnowledgeGapRow) => ({
         id: g.id,
         query: g.query_text,
         intent: g.intent,
@@ -95,7 +100,7 @@ export async function GET(request: NextRequest) {
           _count: true,
         }),
       ])
-      topConflicts = conflicts.map(c => ({
+      topConflicts = conflicts.map((c: KnowledgeConflictRow) => ({
         id: c.id,
         source1: c.source1_title,
         source2: c.source2_title,
